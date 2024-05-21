@@ -35,6 +35,8 @@ with st.container():
             st.image(File)
             # determine the path to temporarily save the image file that was uploaded
             save_folder = os.getenv("save_folder")
+            print(save_folder)
+            print('filename:' + File.name)
             # create a posix path of save_folder and the file name
             save_path = Path(save_folder, File.name)
             # write the uploaded image file to the save_folder you specified
