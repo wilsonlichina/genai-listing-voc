@@ -30,7 +30,7 @@ with st.container():
     # product_bullet = st.text_area("产品卖点")
 
     # this is the button that triggers the invocation of the model, processing of the image and/or question
-    result = st.button("click to create listing")
+    result = st.button("Click Create listing")
 
     user_prompt = 'If you were an excellent Amazon e-commerce product listing specialist.\
         please refer to best seller products on amazon and product image to create product listing \
@@ -44,16 +44,24 @@ with st.container():
         '
 
     # this is the text box that allows the user to insert a question about the uploaded image or a question in general
-    product_tile = st.text_input("Product Title")
-    product_bullet = st.text_area("Bullet Points")
-    product_desc = st.text_area("Description")
+    if "product_title" not in st.session_state:
+        st.session_state.product_title = ""
+    product_tile = st.text_input("Product Title", st.session_state.product_title)
+
+    if "product_bullet" not in st.session_state:
+        st.session_state.product_bullet = ""
+    product_bullet = st.text_area("Bullet Points", st.session_state.product_bullet)
+
+    if "product_desc" not in st.session_state:
+        st.session_state.product_desc = ""
+    product_desc = st.text_area("Description", st.session_state.product_desc)
 
     # if the button is pressed, the model is invoked, and the results are output to the front end
     if result:
         # if an image is uploaded, a file will be present, triggering the image_to_text function
         if File is not None:
             # the image is displayed to the front end for the user to see
-            #st.image(File)
+            st.image(File)
             # determine the path to temporarily save the image file that was uploaded
             save_folder = os.getenv("save_folder")
             print(save_folder)
@@ -71,18 +79,18 @@ with st.container():
                 file_name = save_path
 
                 output = image_to_text(file_name, user_prompt)
-
                 st.write(output)
 
                 data = json.loads(output)
                 
-                #set text 
-                product_tile = data['title']
-                product_bullet = data['bullets']
-                product_desc = data['description']
-
+                st.session_state.product_title = data['title']
+                st.session_state.product_bullet = data['bullets']
+                st.session_state.product_desc = data['description']
+                
                 # removing the image file that was temporarily saved to perform the question and answer task
                 os.remove(save_path)
+
+                st.rerun()
         # if an Image is not uploaded, but a question is, the text_to_text function is invoked
         else:
             # running a text to text task, and outputting the results to the front end
