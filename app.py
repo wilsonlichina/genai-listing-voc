@@ -10,8 +10,8 @@ from amazon_scraper import get_product, get_reviews
 # load environment variables
 load_dotenv()
 
-def gen_listing_prompt(asin, keywords, features):
-    results = get_product(asin)
+def gen_listing_prompt(asin, domain, keywords, features):
+    results = get_product(asin, domain)
     as_title = results['results'][0]['content']['title']
     as_bullet = results['results'][0]['content']['bullet_points']
     as_des = results['results'][0]['content']['description']
@@ -41,8 +41,9 @@ def gen_listing_prompt(asin, keywords, features):
     return user_prompt.format(title=as_title, bullet=as_bullet, des=as_des, kw=keywords, ft=features)
 
 
-def gen_voc_prompt(asin):
-    results = get_reviews(asin)
+def gen_voc_prompt(asin, domain):
+    print('asin:' + asin, 'domain:' + domain)
+    results = get_reviews(asin, domain)
 
     system_role = '''
     You are an analyst tasked with analyzing the provided customer review examples on an e-commerce platform and summarizing them into a comprehensive Voice of Customer (VoC) report. Your job is to carefully read through the product description and reviews, identify key areas of concern, praise, and dissatisfaction regarding the product. You will then synthesize these findings into a well-structured report that highlights the main points for the product team and management to consider.
@@ -79,6 +80,10 @@ option = st.sidebar.selectbox(
     'Function Choicer',
     ('AI Listing', 'VOC'))
 
+country_options = ['USA', 'Singapore']
+country_options_key = {"USA":"com", "Singapore":"sg"}
+country_lable = st.sidebar.selectbox('Select Country', country_options)
+
 # title of the streamlit app
 # st.title(f""":rainbow[{option} with Amazon Bedrock and Claude 3]""")
 
@@ -97,20 +102,6 @@ if option == 'AI Listing':
 
         # this is the button that triggers the invocation of the model, processing of the image and/or question
         result = st.button("Submit")
-
-        # this is the text box that allows the user to insert a question about the uploaded image or a question in general
-        # if "product_title" not in st.session_state:
-        #     st.session_state.product_title = ""
-        # product_tile = st.text_input("Product Title", st.session_state.product_title)
-
-        # if "product_bullet" not in st.session_state:
-        #     st.session_state.product_bullet = ""
-        # product_bullet = st.text_area("Bullet Points", st.session_state.product_bullet)
-
-        # if "product_desc" not in st.session_state:
-        #     st.session_state.product_desc = ""
-        # product_desc = st.text_area("Description", st.session_state.product_desc)
-
 
         # if the button is pressed, the model is invoked, and the results are output to the front end
         if result:
@@ -136,7 +127,11 @@ if option == 'AI Listing':
                     # running the image to text task, and outputting the results to the front end
                     file_name = save_path
 
-                    user_prompt = gen_listing_prompt(asin, brand, features)
+                    domain = "com"
+                    if country_lable in country_options_key:
+                        domain = country_options_key[country_lable]
+
+                    user_prompt = gen_listing_prompt(asin, domain, brand, features)
                     print(user_prompt)
 
                     output = image_to_text(file_name, user_prompt)
@@ -169,7 +164,12 @@ elif option == 'VOC':
         result = st.button("Submit")
 
         if result:
-            user_prompt = gen_voc_prompt(asin)
+            
+            domain = "com"
+            if country_lable in country_options_key:
+                domain = country_options_key[country_lable]
+
+            user_prompt = gen_voc_prompt(asin, domain)
 
             output = text_to_text(user_prompt)
 

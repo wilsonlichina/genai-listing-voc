@@ -12,11 +12,11 @@ from pprint import pprint
 import requests
 from pprint import pprint
 
-def get_product(asin):
+def get_product(asin, do):
     # Structure payload.
     payload = {
         'source': 'amazon_product',
-        'domain': 'com',
+        'domain': do,
         'query': asin,
         'parse': True,
         'context': [
@@ -37,11 +37,11 @@ def get_product(asin):
     return response.json()
 
 
-def get_reviews(asin):
+def get_reviews(asin, do):
     # Structure payload.
     payload = {
         'source': 'amazon_reviews',
-        'domain': 'com',
+        'domain': do,
         'query': asin,
         'parse': True,
     }
@@ -59,3 +59,29 @@ def get_reviews(asin):
     # pprint(response.json())
     
     return response.json()
+
+def get_bestsellers(categoryid):
+    # Structure payload.
+    payload = {
+        'source': 'amazon_bestsellers',
+        'domain': 'com',
+        'query': 'automotive',
+        'start_page': 2,
+        'parse': True,
+        'context': [
+            {'key': 'category_id', 'value': categoryid},
+        ],
+    }
+
+    # Get response.
+    response = requests.request(
+        'POST',
+        'https://realtime.oxylabs.io/v1/queries',
+        auth=('awslab_KkvGd', 'Guoguo_12345789'),
+        json=payload,
+    )
+
+    # Print prettified response to stdout.
+    pprint(response.json())
+    return response.json()
+
