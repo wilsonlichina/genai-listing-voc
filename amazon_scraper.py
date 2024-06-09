@@ -56,6 +56,6 @@ def get_reviews(asin):
     )
 
     # Print prettified response to stdout.
-    pprint(response.json())
+    # pprint(response.json())
     
     return response.json()

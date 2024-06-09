@@ -5,12 +5,12 @@ import os
 import json
 from dotenv import load_dotenv
 from llm_invoke import image_to_text, text_to_text
-from amazon_scraper import get_product
+from amazon_scraper import get_product, get_reviews
 
 # load environment variables
 load_dotenv()
 
-def generate_prompt(asin, keywords, features):
+def gen_listing_prompt(asin, keywords, features):
     results = get_product(asin)
     as_title = results['results'][0]['content']['title']
     as_bullet = results['results'][0]['content']['bullet_points']
@@ -41,6 +41,37 @@ def generate_prompt(asin, keywords, features):
     return user_prompt.format(title=as_title, bullet=as_bullet, des=as_des, kw=keywords, ft=features)
 
 
+def gen_voc_prompt(asin):
+    results = get_reviews(asin)
+
+    system_role = '''
+    You are an analyst tasked with analyzing the provided customer review examples on an e-commerce platform and summarizing them into a comprehensive Voice of Customer (VoC) report. Your job is to carefully read through the product description and reviews, identify key areas of concern, praise, and dissatisfaction regarding the product. You will then synthesize these findings into a well-structured report that highlights the main points for the product team and management to consider.
+
+    The report should include the following sections:
+    Executive Summary - Briefly summarize the key findings and recommendations
+    Positive Feedback - List the main aspects that customers praised about the product
+    Areas for Improvement - Summarize the key areas of dissatisfaction and improvement needs raised by customers
+    Differentiation from Competitors - Unique features or advantages that set a product apart from competitors
+    Unperceived Product Features - Valuable product characteristics or benefits that customers are not fully aware of
+    Core Factors for Repurchase and Recommendation - Critical elements that drive customers to repurchase and recommend a product
+    Sentiment Analysis - Analyze the sentiment tendencies (positive, negative, neutral) in the reviews
+    Topic Categorization - Categorize the review content by topics such as product quality, scent, effectiveness, etc.
+    Recommendations - Based on the analysis, provide recommendations for product improvements and marketing strategies
+
+    When writing the report, use concise and professional language, highlight key points, and provide reviews examples where relevant. Also, be mindful of protecting individual privacy by not disclosing any personally identifiable information.
+    '''
+
+    prompt_template = '''<Product descriptions>
+    {product_description}
+    <Product descriptions>
+
+    <product reviews>
+    {product_reviews}
+    <product reviews>
+    '''
+    return system_role + prompt_template.format(product_description='', product_reviews=results['results'])
+
+
 st.sidebar.header("AI Listing/VOC")
 st.sidebar.write("AI Listing/VOC with Amazon Bedrock and Claude 3")
 
@@ -60,7 +91,7 @@ if option == 'AI Listing':
         # when an image is uploaded it saves the file to the directory, and creates a path to that image
         File = st.file_uploader('Product image', type=["png", "jpg", "jpeg"], key="new")
         
-        asin = st.text_input("Amazon product ASIN", 'B0BZYCJK89')
+        asin = st.text_input("Amazon ASIN", 'B0BZYCJK89')
         brand = st.text_input("Brand", 'Stanley')
         features = st.text_input("Product features")
 
@@ -105,7 +136,7 @@ if option == 'AI Listing':
                     # running the image to text task, and outputting the results to the front end
                     file_name = save_path
 
-                    user_prompt = generate_prompt(asin, brand, features)
+                    user_prompt = gen_listing_prompt(asin, brand, features)
                     print(user_prompt)
 
                     output = image_to_text(file_name, user_prompt)
@@ -132,6 +163,14 @@ if option == 'AI Listing':
                 # running a text to text task, and outputting the results to the front end
                 st.write(text_to_text(''))
 elif option == 'VOC':
-    st.write("VOC")
+    with st.container():
+        asin = st.text_input("Amazon ASIN", 'B0BZYCJK89')
 
+        result = st.button("Submit")
 
+        if result:
+            user_prompt = gen_voc_prompt(asin)
+
+            output = text_to_text(user_prompt)
+
+            st.write(output)

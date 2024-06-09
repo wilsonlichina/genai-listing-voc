@@ -13,7 +13,6 @@ load_dotenv()
 boto3.setup_default_session(profile_name=os.getenv("profile_name"))
 bedrock = boto3.client('bedrock-runtime', 'us-east-1', endpoint_url='https://bedrock-runtime.us-east-1.amazonaws.com')
 
-
 def image_base64_encoder(image_name):
     """
     This function takes in a string that represent the path to the image that has been uploaded by the user and the function
@@ -138,3 +137,4 @@ def text_to_text(text):
     llm_output = response_body['content'][0]['text']
     # returning the final string to the end user
     return llm_output
+
