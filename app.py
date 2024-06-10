@@ -4,74 +4,12 @@ from pathlib import Path
 import os
 import json
 from dotenv import load_dotenv
-from llm_invoke import image_to_text, text_to_text
-from amazon_scraper import get_product, get_reviews
+from listing_voc_prompt import image_to_text, text_to_text, gen_listing_prompt, gen_voc_prompt
+from listing_voc_agent import init_crew
+
 
 # load environment variables
 load_dotenv()
-
-def gen_listing_prompt(asin, domain, keywords, features):
-    results = get_product(asin, domain)
-    as_title = results['results'][0]['content']['title']
-    as_bullet = results['results'][0]['content']['bullet_points']
-    as_des = results['results'][0]['content']['description']
-
-    user_prompt = '''
-    If you were an excellent Amazon e-commerce product listing specialist.
-    Please refer to the following sample of a product on Amazon: 
-
-    <product>
-    title:{title}
-    bullets:{bullet}
-    description:{des}
-    </product>
-
-    please refer to <product> and best seller products on amazon and product image to create product listing.
-    Brand is {kw} 
-    Product features are {ft} 
-
-    please output at least 5 bullets
-    In your output, I only need the actual JSON array output. Do not include any other descriptive text related to human interaction. 
-    output format: 
-        "title": "title",
-        "bullets": "bullets",
-        "description": "description"
-    '''
-    
-    return user_prompt.format(title=as_title, bullet=as_bullet, des=as_des, kw=keywords, ft=features)
-
-
-def gen_voc_prompt(asin, domain):
-    print('asin:' + asin, 'domain:' + domain)
-    results = get_reviews(asin, domain)
-
-    system_role = '''
-    You are an analyst tasked with analyzing the provided customer review examples on an e-commerce platform and summarizing them into a comprehensive Voice of Customer (VoC) report. Your job is to carefully read through the product description and reviews, identify key areas of concern, praise, and dissatisfaction regarding the product. You will then synthesize these findings into a well-structured report that highlights the main points for the product team and management to consider.
-
-    The report should include the following sections:
-    Executive Summary - Briefly summarize the key findings and recommendations
-    Positive Feedback - List the main aspects that customers praised about the product
-    Areas for Improvement - Summarize the key areas of dissatisfaction and improvement needs raised by customers
-    Differentiation from Competitors - Unique features or advantages that set a product apart from competitors
-    Unperceived Product Features - Valuable product characteristics or benefits that customers are not fully aware of
-    Core Factors for Repurchase and Recommendation - Critical elements that drive customers to repurchase and recommend a product
-    Sentiment Analysis - Analyze the sentiment tendencies (positive, negative, neutral) in the reviews
-    Topic Categorization - Categorize the review content by topics such as product quality, scent, effectiveness, etc.
-    Recommendations - Based on the analysis, provide recommendations for product improvements and marketing strategies
-
-    When writing the report, use concise and professional language, highlight key points, and provide reviews examples where relevant. Also, be mindful of protecting individual privacy by not disclosing any personally identifiable information.
-    '''
-
-    prompt_template = '''<Product descriptions>
-    {product_description}
-    <Product descriptions>
-
-    <product reviews>
-    {product_reviews}
-    <product reviews>
-    '''
-    return system_role + prompt_template.format(product_description='', product_reviews=results['results'])
-
 
 st.sidebar.header("AI Listing/VOC")
 st.sidebar.write("AI Listing/VOC with Amazon Bedrock and Claude 3")
@@ -131,19 +69,23 @@ if option == 'AI Listing':
                     if country_lable in country_options_key:
                         domain = country_options_key[country_lable]
 
-                    user_prompt = gen_listing_prompt(asin, domain, brand, features)
-                    print(user_prompt)
+                    # user_prompt = gen_listing_prompt(asin, domain, brand, features)
+                    # print(user_prompt)
 
-                    output = image_to_text(file_name, user_prompt)
+                    # output = image_to_text(file_name, user_prompt)
                     #st.write(output)
 
+                    app_crew = init_crew(asin, domain, file_name, brand, features)
+                    output = app_crew.kickoff()
+
                     data = json.loads(output)
+
                     st.write(data['title'])
 
                     # #get all string from bullet points data['bullets']
                     bullet_points = ""
                     for item in data['bullets']:
-                        bullet_points += "• " + item + "\n"
+                        bullet_points += "• " + item + " \n"
 
                     st.write(bullet_points)
 
@@ -164,7 +106,6 @@ elif option == 'VOC':
         result = st.button("Submit")
 
         if result:
-            
             domain = "com"
             if country_lable in country_options_key:
                 domain = country_options_key[country_lable]

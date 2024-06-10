@@ -1,10 +1,17 @@
+import os
 import boto3
 import json
 from dotenv import load_dotenv
-import os
+
 import base64
 import io
 from PIL import Image
+
+from langchain.agents import tool 
+from langchain_community.chat_models import BedrockChat
+from langchain.llms import Bedrock
+
+from amazon_scraper import get_product, get_reviews
 
 # loading in variables from .env file
 load_dotenv()
@@ -12,6 +19,68 @@ load_dotenv()
 # instantiating the Bedrock client, and passing in the CLI profile
 boto3.setup_default_session(profile_name=os.getenv("profile_name"))
 bedrock = boto3.client('bedrock-runtime', 'us-east-1', endpoint_url='https://bedrock-runtime.us-east-1.amazonaws.com')
+
+def gen_listing_prompt(asin, domain, keywords, features):
+    results = get_product(asin, domain)
+    as_title = results['results'][0]['content']['title']
+    as_bullet = results['results'][0]['content']['bullet_points']
+    as_des = results['results'][0]['content']['description']
+
+    user_prompt = '''
+    If you were an excellent Amazon e-commerce product listing specialist.
+    Please refer to the following sample of a product on Amazon: 
+
+    <product>
+    title:{title}
+    bullets:{bullet}
+    description:{des}
+    </product>
+
+    please refer to <product> and best seller products on amazon and product image to create product listing.
+    Brand is {kw} 
+    Product features are {ft} 
+
+    please output at least 5 bullets
+    In your output, I only need the actual JSON array output. Do not include any other descriptive text related to human interaction. 
+    output format: 
+        "title": "title",
+        "bullets": "bullets",
+        "description": "description"
+    '''
+    
+    return user_prompt.format(title=as_title, bullet=as_bullet, des=as_des, kw=keywords, ft=features)
+
+
+def gen_voc_prompt(asin, domain):
+    print('asin:' + asin, 'domain:' + domain)
+    results = get_reviews(asin, domain)
+
+    system_role = '''
+    You are an analyst tasked with analyzing the provided customer review examples on an e-commerce platform and summarizing them into a comprehensive Voice of Customer (VoC) report. Your job is to carefully read through the product description and reviews, identify key areas of concern, praise, and dissatisfaction regarding the product. You will then synthesize these findings into a well-structured report that highlights the main points for the product team and management to consider.
+
+    The report should include the following sections:
+    Executive Summary - Briefly summarize the key findings and recommendations
+    Positive Feedback - List the main aspects that customers praised about the product
+    Areas for Improvement - Summarize the key areas of dissatisfaction and improvement needs raised by customers
+    Differentiation from Competitors - Unique features or advantages that set a product apart from competitors
+    Unperceived Product Features - Valuable product characteristics or benefits that customers are not fully aware of
+    Core Factors for Repurchase and Recommendation - Critical elements that drive customers to repurchase and recommend a product
+    Sentiment Analysis - Analyze the sentiment tendencies (positive, negative, neutral) in the reviews
+    Topic Categorization - Categorize the review content by topics such as product quality, scent, effectiveness, etc.
+    Recommendations - Based on the analysis, provide recommendations for product improvements and marketing strategies
+
+    When writing the report, use concise and professional language, highlight key points, and provide reviews examples where relevant. Also, be mindful of protecting individual privacy by not disclosing any personally identifiable information.
+    '''
+
+    prompt_template = '''<Product descriptions>
+    {product_description}
+    <Product descriptions>
+
+    <product reviews>
+    {product_reviews}
+    <product reviews>
+    '''
+    return system_role + prompt_template.format(product_description='', product_reviews=results['results'])
 
 def image_base64_encoder(image_name):
     """
@@ -61,7 +130,7 @@ def image_to_text(image_name, text) -> str:
     # text the user inserted
     prompt = {
         "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 1000,
+        "max_tokens": 2048,
         "temperature": 0.5,
         "system": system_prompt,
         "messages": [
@@ -111,7 +180,7 @@ def text_to_text(text):
     # this is the formatted prompt that contains both the system_prompt along with the text prompt that was inserted by the user.
     prompt = {
         "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 1000,
+        "max_tokens": 2048,
         "temperature": 0.5,
         "system": system_prompt,
         "messages": [
