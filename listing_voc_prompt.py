@@ -22,9 +22,9 @@ bedrock = boto3.client('bedrock-runtime', 'us-east-1', endpoint_url='https://bed
 
 def gen_listing_prompt(asin, domain, keywords, features):
     results = get_product(asin, domain)
-    as_title = results['results'][0]['content']['title']
-    as_bullet = results['results'][0]['content']['bullet_points']
-    as_des = results['results'][0]['content']['description']
+    as_title = results[0]['content']['title']
+    as_bullet = results[0]['content']['bullet_points']
+    as_des = results[0]['content']['description']
 
     user_prompt = '''
     If you were an excellent Amazon e-commerce product listing specialist.

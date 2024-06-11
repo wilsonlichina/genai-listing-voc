@@ -33,7 +33,7 @@ def initialize_llm():
     """
     model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
     model_kwargs = {
-        "max_tokens": 2048,
+        "max_tokens": 8192,
         "temperature": 0.0,
         "top_k": 250,
         "top_p": 1,
@@ -76,19 +76,18 @@ def image_base64_encoder(image_name):
     return file_type, image_base64
 
 @tool
-def get_product_info(asin, domain):
+def get_product_info(asin):
     """
     Get product information from Amazon.
 
     Args:
         asin (str): The ASIN of the product.
-        domain (str): com,uk,sg or etc.
 
     Returns:
         str: The product information.
 
     """
-    product_info = get_product(asin, domain)
+    product_info = get_product(asin, 'com')
     return product_info
 
 @tool
@@ -98,13 +97,12 @@ def get_product_reviews(asin, domain):
 
     Args:
         asin (str): The ASIN of the product.
-        domain (str): com,uk,sg or etc.
 
     Returns:
         str: The product reviews.
 
     """
-    product_reviews = get_reviews(asin, domain)
+    product_reviews = get_reviews(asin, 'com')
 
 
 product_loader = Agent(
@@ -145,6 +143,7 @@ def init_crew(asin:str, domain:str, image_name:str, brand:str, product_features:
     listing_creation_task = Task(
         description=f"""For the product image with {file_type} format and base64 encoding {image_base64}, please refer to the information from the listing specialist agents to create the product listing. 
         The product listing title should include the brand name {brand}. Additionally, the product features should highlight {product_features}.
+        Please be sure to not simply copy from the reference Amazon ASIN {asin} product listing.
         """,
         agent=listing_specialist,
         expected_output=f'The actual JSON array output. Do not include any other descriptive text related to human interaction.'

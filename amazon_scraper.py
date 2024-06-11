@@ -34,7 +34,7 @@ def get_product(asin, do):
         json=payload,
     )
 
-    return response.json()
+    return response.json()['results']
 
 
 def get_reviews(asin, do):
@@ -83,5 +83,5 @@ def get_bestsellers(categoryid):
 
     # Print prettified response to stdout.
     pprint(response.json())
-    return response.json()
+    return response.json()['results'][0]['content']
 
