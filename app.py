@@ -1,11 +1,12 @@
 import base64
+import string
 import streamlit as st
 from pathlib import Path
 import os
 import json
 from dotenv import load_dotenv
 from listing_voc_prompt import image_to_text, text_to_text, gen_listing_prompt, gen_voc_prompt
-from listing_voc_agent import init_crew
+from listing_voc_agents import create_listing
 
 
 # load environment variables
@@ -27,7 +28,7 @@ option = st.sidebar.selectbox(
 
 if option == 'AI Listing':
     
-    mode_options = ['PE', 'Agent']
+    mode_options = ['Agent', 'PE']
     mode_lable = st.sidebar.selectbox('Select Mode', mode_options)
 
     # default listing container that houses the image upload field
@@ -76,8 +77,9 @@ if option == 'AI Listing':
                         output = image_to_text(file_name, user_prompt)
                         #st.write(output)
                     elif mode_lable == 'Agent':
-                        app_crew = init_crew(asin, 'com', file_name, brand, features)
-                        output = app_crew.kickoff()
+                        response = create_listing(asin, file_name, brand, features)
+                        rslist = str(response['output']).rsplit('>')
+                        output = rslist[-1]
 
                     data = json.loads(output)
 
