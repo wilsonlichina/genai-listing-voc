@@ -26,10 +26,15 @@ option = st.sidebar.selectbox(
 # title of the streamlit app
 # st.title(f""":rainbow[{option} with Amazon Bedrock and Claude 3]""")
 
+language_options = ['English', 'Chinese']
+language_lable = st.sidebar.selectbox('Select Language', language_options)
+
+
 if option == 'AI Listing':
     
-    mode_options = ['Agent', 'PE']
-    mode_lable = st.sidebar.selectbox('Select Mode', mode_options)
+    # mode_options = ['Agent', 'PE']
+    # mode_lable = st.sidebar.selectbox('Select Mode', mode_options)
+    mode_lable = 'PE'
 
     # default listing container that houses the image upload field
     with st.container():
@@ -38,8 +43,8 @@ if option == 'AI Listing':
         # the image upload field, the specific ui element that allows you to upload an image
         # when an image is uploaded it saves the file to the directory, and creates a path to that image
         File = st.file_uploader('Product image', type=["png", "jpg", "jpeg"], key="new")
-        brand = st.text_input("Brand", 'Stanley')
-        features = st.text_input("Product Short Description")
+        brand = st.text_input("Brand", 'The Peanutshell')
+        features = st.text_input("Product Keywords", "The Peanutshell Crib Mobile for Boys or Girls, Unicorn, Stars, Rainbow, Montessori Inspired")
 
         asin = st.text_input("Reference Amazon ASIN", 'B0BZYCJK89')
 
@@ -71,16 +76,19 @@ if option == 'AI Listing':
                     file_name = save_path
 
                     if mode_lable == 'PE':
-                        user_prompt = gen_listing_prompt(asin, 'com', brand, features)
-                        print(user_prompt)
+                        system_prompt, user_prompt = gen_listing_prompt(asin, 'com', brand, features, language_lable)
+                        print('system_prompt:' + system_prompt)
+                        print('user_prompt:' + user_prompt)
                         
-                        output = image_to_text(file_name, user_prompt)
+                        output = image_to_text(file_name, system_prompt, user_prompt)
                         #st.write(output)
                     elif mode_lable == 'Agent':
                         response = create_listing(asin, file_name, brand, features)
+                        print(response)
                         rslist = str(response['output']).rsplit('>')
                         output = rslist[-1]
 
+                    print("output:" + output)
                     data = json.loads(output)
 
                     st.write("Title:\n")
@@ -112,8 +120,7 @@ elif option == 'VOC':
 
         if result:
             domain = "com"
-            user_prompt = gen_voc_prompt(asin, domain)
-
-            output = text_to_text(user_prompt)
+            system_prompt, user_prompt  = gen_voc_prompt(asin, domain, language_lable)
+            output = text_to_text(system_prompt, user_prompt)
 
             st.write(output)

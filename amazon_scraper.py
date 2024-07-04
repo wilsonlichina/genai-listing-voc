@@ -31,11 +31,11 @@ def get_product(asin, do):
     response = requests.request(
         'POST',
         'https://realtime.oxylabs.io/v1/queries',
-        auth=('awslab_KkvGd', 'Guoguo_12345789'),
+        auth=('awslab_KkvGd', 'Guoguo_12345678'),
         json=payload,
     )
 
-    return response.json()['results']
+    return response.json()
 
 
 def get_reviews(asin, do):
@@ -52,12 +52,12 @@ def get_reviews(asin, do):
     response = requests.request(
         'POST',
         'https://realtime.oxylabs.io/v1/queries',
-        auth=('awslab_KkvGd', 'Guoguo_12345789'),
+        auth=('awslab_KkvGd', 'Guoguo_12345678'),
         json=payload,
     )
 
     # Print prettified response to stdout.
-    # pprint(response.json())
+    pprint(response.json())
     
     return response.json()
 
@@ -67,7 +67,7 @@ def get_bestsellers(categoryid):
         'source': 'amazon_bestsellers',
         'domain': 'com',
         'query': 'automotive',
-        'start_page': 2,
+        'start_page': 1,
         'parse': True,
         'context': [
             {'key': 'category_id', 'value': categoryid},
@@ -78,11 +78,11 @@ def get_bestsellers(categoryid):
     response = requests.request(
         'POST',
         'https://realtime.oxylabs.io/v1/queries',
-        auth=('awslab_KkvGd', 'Guoguo_12345789'),
+        auth=('awslab_KkvGd', 'Guoguo_12345678'),
         json=payload,
     )
 
     # Print prettified response to stdout.
     pprint(response.json())
-    return response.json()['results'][0]['content']
-
+    # return response.json()['results'][0]['content']
+    return response.json()

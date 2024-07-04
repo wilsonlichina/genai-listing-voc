@@ -11,7 +11,7 @@ from langchain.agents import tool
 from langchain_community.chat_models import BedrockChat
 from langchain.llms import Bedrock
 
-from amazon_scraper import get_product, get_reviews
+from amazon_scraper import get_product, get_reviews, get_bestsellers
 
 # loading in variables from .env file
 load_dotenv()
@@ -20,38 +20,50 @@ load_dotenv()
 boto3.setup_default_session(profile_name=os.getenv("profile_name"))
 bedrock = boto3.client('bedrock-runtime', 'us-east-1', endpoint_url='https://bedrock-runtime.us-east-1.amazonaws.com')
 
-def gen_listing_prompt(asin, domain, keywords, features):
+def gen_listing_prompt(asin, domain, keywords, features, language):
     results = get_product(asin, domain)
-    as_title = results[0]['content']['title']
-    as_bullet = results[0]['content']['bullet_points']
-    as_des = results[0]['content']['description']
-
-    user_prompt = '''
-    If you were an excellent Amazon e-commerce product listing specialist.
-    Please refer to the following sample of a product on Amazon: 
-
-    <product>
-    title:{title}
-    bullets:{bullet}
-    description:{des}
-    </product>
-
-    please refer to <product> and best seller products on amazon and product image to create product listing.
-    Brand is {kw} 
-    Product features are {ft} 
-
-    please output at least 5 bullets
-    In your output, I only need the actual JSON array output. Do not include any other descriptive text related to human interaction. 
-    output format: 
-        "title": "title",
-        "bullets": "bullets",
-        "description": "description"
-    '''
+    as_title = results['results'][0]['content']['title']
+    as_bullet = results['results'][0]['content']['bullet_points']
+    as_des = results['results'][0]['content']['description']
     
-    return user_prompt.format(title=as_title, bullet=as_bullet, des=as_des, kw=keywords, ft=features)
+
+    systemrole = '''If you were an excellent Amazon product listing specialist.
+    Your task is to create compelling and optimized product listings for Amazon based on the provided information.
+    Please refer to the following examples and best seller products on Amazon to create a comprehensive product listing.
+    
+    Example of a good product listing on Amazon:
+
+    <Example>
+        <title>{title}</title>
+        <bullets>{bullet}</title>
+        <description>{des}</description>
+    </Example>
+
+    Please translate the result into {lang}
+    '''
+
+    prompt_template = '''Please refer to the above image and the following production infomation fo to create product listing.
+
+    Product Information:
+
+    <product_information>
+        <brand>{kw}</brand> 
+        <keywords>{ft}</keywords> 
+    </product_information>
+
+    Please output at least 5 bullets and translate the result into {lang}
+
+    In your output, I only need the actual JSON array output. Do not include any other descriptive text related to human interaction. 
+    the key of json: "title", "bullets", description".
+    '''
+
+    system_prompt = systemrole.format(title=as_title, bullet=as_bullet, des=as_des,lang=language)
+    user_prompt  =prompt_template.format(kw=keywords, ft=features,lang=language)
+
+    return system_prompt, user_prompt
 
 
-def gen_voc_prompt(asin, domain):
+def gen_voc_prompt(asin, domain, language):
     print('asin:' + asin, 'domain:' + domain)
     results = get_reviews(asin, domain)
 
@@ -70,6 +82,8 @@ def gen_voc_prompt(asin, domain):
     Recommendations - Based on the analysis, provide recommendations for product improvements and marketing strategies
 
     When writing the report, use concise and professional language, highlight key points, and provide reviews examples where relevant. Also, be mindful of protecting individual privacy by not disclosing any personally identifiable information.
+
+    Please translate the result into {lang}
     '''
 
     prompt_template = '''<Product descriptions>
@@ -79,8 +93,13 @@ def gen_voc_prompt(asin, domain):
     <product reviews>
     {product_reviews}
     <product reviews>
+
+     Please translate the result into {lang}
     '''
-    return system_role + prompt_template.format(product_description='', product_reviews=results['results'])
+    system_prompt = system_role.format(lang=language)
+    user_prompt  = prompt_template.format(product_description='', product_reviews=results['results'], lang=language)
+
+    return system_prompt, user_prompt
 
 def image_base64_encoder(image_name):
     """
@@ -104,7 +123,7 @@ def image_base64_encoder(image_name):
     return file_type, image_base64
 
 
-def image_to_text(image_name, text) -> str:
+def image_to_text(image_name, sysprompt, text) -> str:
     """
     This function is used to perform an image to text llm invocation against Claude 3. It can work with just an image and/or with
     text. If the user does not use any text, a default prompt will be passed in along with the system prompt as Claude 3 expects
@@ -122,6 +141,10 @@ def image_to_text(image_name, text) -> str:
     
     If a more specific question is presented by the user, make sure to prioritize that answer.
     """
+
+    if sysprompt != "":
+        system_prompt = sysprompt
+
     # checking if the user inserted any text along with the image, if not, we set text to a default since claude expects
     # text in the text block of the prompt.
     if text == "":
@@ -131,7 +154,7 @@ def image_to_text(image_name, text) -> str:
     prompt = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": 2048,
-        "temperature": 0.5,
+        "temperature": 0.9,
         "system": system_prompt,
         "messages": [
             {
@@ -166,7 +189,7 @@ def image_to_text(image_name, text) -> str:
     return llm_output
 
 
-def text_to_text(text):
+def text_to_text(sysprompt, text):
     """
     This function is used if a user does not upload an image, and only uploads text, this text is directly passed into
     Claude3.
@@ -177,6 +200,10 @@ def text_to_text(text):
     # TODO: Edit the system prompt based on your specific use case
     system_prompt = """Answer every aspect of the provided question as thoroughly as possible. Be extremely thorough and provide detailed answers to the user provided question.
     """
+
+    if sysprompt != "":
+        system_prompt = sysprompt
+
     # this is the formatted prompt that contains both the system_prompt along with the text prompt that was inserted by the user.
     prompt = {
         "anthropic_version": "bedrock-2023-05-31",

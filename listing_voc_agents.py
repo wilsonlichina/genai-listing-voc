@@ -14,11 +14,13 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import (SystemMessage, HumanMessage, AIMessage)
-from langchain.agents import AgentExecutor, AgentType, create_tool_calling_agent, tool
+from langchain.agents import AgentExecutor, AgentType, initialize_agent, create_tool_calling_agent, tool
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.messages import HumanMessage
 
 from amazon_scraper import get_product, get_reviews
+
+os.environ["TAVILY_API_KEY"] = "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"
 
 def initialize_llm():
     """Initialize the Bedrock runtime."""
@@ -30,7 +32,7 @@ def initialize_llm():
     """Initialize the language model."""
     model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
     model_kwargs = {
-        "max_tokens": 8192,
+        "max_tokens": 10240,
         "temperature": 0.0,
         "top_k": 250,
         "top_p": 1
@@ -76,13 +78,14 @@ def create_listing(asin:str, image_name:str, brand:str, product_features:str):
     img1_path = Path(save_folder, image_name)
     img1_base64 = base64.b64encode(img1_path.read_bytes()).decode("utf-8")
 
-    system_message = "You are a amazon product speciallist"
+    # system_message = "You are a amazon product speciallist"
     human_message = [
                 {
                     "type": "image_url",
                     "image_url": {
                         "url": f"data:image/png;base64,{img1_base64}",
                     },
+
                 },
                 {   
                     "type": "text",
@@ -92,8 +95,8 @@ def create_listing(asin:str, image_name:str, brand:str, product_features:str):
 
     prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", "You are a amazon product specaillist. please use search tool get infomation"),
-                ("human", human_message),
+                ("system", "You are a amazon product specaillist. you can refer to the product infomation by search API or get_product_info tool."),
+                ("user", human_message),
                 ("placeholder", "{agent_scratchpad}"),
             ]
     )   
@@ -102,18 +105,25 @@ def create_listing(asin:str, image_name:str, brand:str, product_features:str):
 
     agent = create_tool_calling_agent(bedrock_llm, tools, prompt)
     
-    agent_executor = AgentExecutor(agent=agent, 
-                                   tools=tools, 
-                                   verbose=True)
+    agent_executor = AgentExecutor(agent=agent, tools=tools, 
+                                   verbose=True,
+                                   debug=True)
     
-    input = f'''please create a good product listing for image. you can refer to the product list of amazon asin {asin}
-    the brand is {brand}. the product description should highlight {product_features}
-    In your output, I only need the actual JSON array output. Do not include any other descriptive text related to human interaction. 
-    output format: 
-    {'{'}
-        "title": "title", 
-        "bullets": "bullets", 
-        "description": "description"
-    {'}'}'''
+    # agent = initialize_agent(
+    #     tools,
+    #     bedrock_llm,
+    #     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+    #     verbose=True)
+
+    input = f'''for <product>, please create a good product listing of image above. you can refer to the product list of amazon asin {asin}
+    <product>the brand is {brand}. the product description should highlight {product_features}</product>
+    In your output, I only need the actual JSON output. Do not include any other descriptive text related to human interaction. 
+    json key: "title", "bullets", description".
+    '''
     
     return agent_executor.invoke({"input": input})
+    # return agent.run({"input": input})
+
+#write code to upload file to s3
+#generate a random file name
+#genertate md5 
