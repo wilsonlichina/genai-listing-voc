@@ -13,7 +13,7 @@ from content_moderation import content_moderation_image
 load_dotenv()
 
 st.sidebar.header("RCH GenAI Tools")
-st.sidebar.write("VOC/Listing/Image moderation with Amazon Bedrock and Claude")
+st.sidebar.write("VOC/Listing/Image audit with Amazon Bedrock and Claude")
 
 option = st.sidebar.selectbox(
     'Function Choicer',
