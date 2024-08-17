@@ -7,17 +7,17 @@ import json
 from dotenv import load_dotenv
 from listing_voc_prompt import image_to_text, text_to_text, gen_listing_prompt, gen_voc_prompt
 from listing_voc_agents import create_listing
-
+from content_moderation import content_moderation_image
 
 # load environment variables
 load_dotenv()
 
-st.sidebar.header("AI Listing/VOC")
-st.sidebar.write("AI Listing/VOC with Amazon Bedrock and Claude 3")
+st.sidebar.header("RCH GenAI Tools")
+st.sidebar.write("VOC/Listing/Image moderation with Amazon Bedrock and Claude")
 
 option = st.sidebar.selectbox(
     'Function Choicer',
-    ('AI Listing', 'VOC'))
+    ('VOC', 'AI Listing', 'image audit'))
 
 # country_options = ['USA', 'Singapore']
 # country_options_key = {"USA":"com", "Singapore":"sg"}
@@ -26,12 +26,10 @@ option = st.sidebar.selectbox(
 # title of the streamlit app
 # st.title(f""":rainbow[{option} with Amazon Bedrock and Claude 3]""")
 
-language_options = ['English', 'Chinese']
-language_lable = st.sidebar.selectbox('Select Language', language_options)
-
 
 if option == 'AI Listing':
-    
+    language_options = ['English', 'Chinese']
+    language_lable = st.sidebar.selectbox('Select Language', language_options)
     # mode_options = ['Agent', 'PE']
     # mode_lable = st.sidebar.selectbox('Select Mode', mode_options)
     mode_lable = 'PE'
@@ -42,7 +40,7 @@ if option == 'AI Listing':
         # st.subheader('Image File Upload:')
         # the image upload field, the specific ui element that allows you to upload an image
         # when an image is uploaded it saves the file to the directory, and creates a path to that image
-        File = st.file_uploader('Product image', type=["png", "jpg", "jpeg"], key="new")
+        File = st.file_uploader('Product image', type=["webp", "png", "jpg", "jpeg"], key="new")
         brand = st.text_input("Brand", 'The Peanutshell')
         features = st.text_input("Product Keywords", "The Peanutshell Crib Mobile for Boys or Girls, Unicorn, Stars, Rainbow, Montessori Inspired")
 
@@ -113,6 +111,9 @@ if option == 'AI Listing':
                 # running a text to text task, and outputting the results to the front end
                 st.write('select product image')
 elif option == 'VOC':
+    language_options = ['English', 'Chinese']
+    language_lable = st.sidebar.selectbox('Select Language', language_options)
+
     with st.container():
         asin = st.text_input("Amazon ASIN", 'B0BZYCJK89')
 
@@ -124,3 +125,24 @@ elif option == 'VOC':
             output = text_to_text(system_prompt, user_prompt)
 
             st.write(output)
+elif option == 'image audit':
+    with st.container():
+        File = st.file_uploader('Please select the image to be audited', type=["webp", "png", "jpg", "jpeg"], key="new")
+        result = st.button("Submit")
+
+        if result:
+            if File is not None:
+                save_folder = os.getenv("save_folder")
+                print(save_folder)
+                print('filename:' + File.name)
+
+                save_path = Path(save_folder, File.name)
+                with open(save_path, mode='wb') as w:
+                    w.write(File.getvalue())
+
+                if save_path.exists():
+                    file_name = save_path
+                    output = content_moderation_image(file_name)
+                    st.write(output)
+            else:
+                st.write('select the image to audited')

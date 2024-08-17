@@ -31,7 +31,8 @@ def get_product(asin, do):
     response = requests.request(
         'POST',
         'https://realtime.oxylabs.io/v1/queries',
-        auth=('awslab_KkvGd', 'Guoguo_12345678'),
+        #auth=('awslab_KkvGd', 'awsLAB_10248376'),
+        auth=('myaws_9PGDk', 'retail_AWS_123'),
         json=payload,
     )
 
@@ -52,11 +53,13 @@ def get_reviews(asin, do):
     response = requests.request(
         'POST',
         'https://realtime.oxylabs.io/v1/queries',
-        auth=('awslab_KkvGd', 'Guoguo_12345678'),
+        # auth=('awslab_KkvGd', 'awsLAB_10248376'),
+        auth=('myaws_9PGDk', 'retail_AWS_123'),
         json=payload,
     )
 
     # Print prettified response to stdout.
+    # pprint("reponse message:" + str(response.status_code))
     pprint(response.json())
     
     return response.json()
@@ -78,11 +81,12 @@ def get_bestsellers(categoryid):
     response = requests.request(
         'POST',
         'https://realtime.oxylabs.io/v1/queries',
-        auth=('awslab_KkvGd', 'Guoguo_12345678'),
+        # auth=('awslab_KkvGd', 'awsLAB_10248376'),
+        auth=('myaws_9PGDk', 'retail_AWS_123'),
         json=payload,
     )
 
     # Print prettified response to stdout.
-    pprint(response.json())
+    # pprint(response.json())
     # return response.json()['results'][0]['content']
     return response.json()
