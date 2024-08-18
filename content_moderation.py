@@ -26,7 +26,7 @@ def image_base64_encoder(image_path, max_size=1568):
             new_height = max_size
             new_width = int(width * (max_size / height))
 
-        img = img.resize((new_width, new_height), Image.ANTIALIAS)
+        img = img.resize((new_width, new_height), resample=Image.Resampling.LANCZOS)
 
     resized_bytes = io.BytesIO()
     img.save(resized_bytes, format=img_format)
@@ -35,37 +35,54 @@ def image_base64_encoder(image_path, max_size=1568):
     return resized_bytes, img_format
 
 
-def content_moderation_image(image_filename, language_lable):
+def content_moderation_image(image_filename):
 
     imagedata, image_type =image_base64_encoder(image_filename)
 
     system_text='''
-    任务: 检测用户上传的图片是否对现有市场上的品牌形象造成侵权。
+任务: 检测用户上传的图片是否对现有市场上的品牌、商标、版权作品等知识产权造成侵权。
 
-    输入:
-    用户上传的图片
+输入:
+用户上传的图片
 
-    输出:
-    {
-     "infringement": <布尔值,表示是否侵权>,
-      "confidence": <0到1之间的浮点数,表示置信度>,
-      "reason": "<判断侵权或不侵权的原因>"
-    }
+输出:
+{
+"infringement": <布尔值,表示是否侵权>,
+"confidence": <0到1之间的浮点数,表示置信度>,
+"reason": "<判断侵权或不侵权的详细原因>",
+"infringing_elements": [<侵权元素列表>],
+"suggested_actions": "<建议采取的行动>"
+}
 
-    例子输出:
-    {
-    "infringement": true,
-    "confidence": 0.9,
-    "reason": "上传的图片中包含了现有品牌的注册商标,未经授权使用可能构成侵权。"
-    }
+例子输出:
+{
+"infringement": true,
+"confidence": 0.95,
+"reason": "上传的图片中包含了与知名品牌'XYZ'极为相似的logo设计,未经授权使用可能构成商标侵权。此外,图片背景使用了版权电影'ABC'的场景,未经许可可能涉及版权侵犯。",
+"infringing_elements": ["XYZ品牌logo", "ABC电影场景"],
+"suggested_actions": "建议移除或重新设计相似logo,并获取电影场景的使用授权。"
+}
 
-    限制条件:
-    - 输出中的"infringement"字段必须是布尔值
-    - 输出中的"confidence"字段必须是0到1之间的浮点数
-    - 输出中的"reason"字段必须是一个字符串,解释判断的原因
-    - 判断侵权与否时,请考虑商标、版权等知识产权因素
+限制条件:
 
-    请根据上述要求,检测输入图片是否对现有品牌形象造成侵权,并生成相应的JSON输出。
+"infringement"字段必须是布尔值
+"confidence"字段必须是0到1之间的浮点数,精确到小数点后两位
+"reason"字段必须详细说明判断依据,包括可能侵权的具体元素及其对应的知识产权
+"infringing_elements"字段列出所有可能侵权的元素
+"suggested_actions"字段提供避免侵权的具体建议
+分析步骤:
+
+仔细观察图片中的所有视觉元素
+识别任何与现有品牌、商标相似的标志、文字或设计
+检测是否存在来自版权作品(如电影、音乐、艺术品等)的元素
+评估这些元素的使用是否可能构成侵权
+根据分析结果生成详细的JSON输出
+注意事项:
+
+考虑商标、版权、专利等各种知识产权
+注意区分合理使用和侵权行为
+保持客观,给出基于事实的分析
+请根据上述要求,全面分析输入图片是否存在侵权风险,并生成详细的JSON格式输出。
 '''
     system_prompts = [{"text" : system_text}]
     text='判断用户上传的图片是否侵权，使用JSON格式返回，不要做任何多余解释。'
@@ -99,7 +116,7 @@ def content_moderation_image(image_filename, language_lable):
         additionalModelRequestFields=additional_model_fields,
     )
 
-    return(response['output'])
+    return(response['output']['message']['content'])
 
 #content_result=content_moderation_image(image_data,image_type)
 #print(content_result)
@@ -163,7 +180,7 @@ you should respond json only, no any other explanation.
         additionalModelRequestFields=additional_model_fields,
     )
 
-    return(response['output'])
+    return(response['output']['message']['content'])
 
 text='I hate everyone.'
 

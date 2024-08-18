@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 from listing_voc_prompt import image_to_text, text_to_text, gen_listing_prompt, gen_voc_prompt
 from listing_voc_agents import create_listing
 from content_moderation import content_moderation_image
+from content_moderation import content_moderation_text
+from PIL import Image
 
 # load environment variables
 load_dotenv()
@@ -17,7 +19,7 @@ st.sidebar.write("VOC/Listing/Image audit with Amazon Bedrock and Claude")
 
 option = st.sidebar.selectbox(
     'Function Choicer',
-    ('VOC', 'AI Listing', 'image audit'))
+    ('VOC', 'AI Listing', 'image audit', 'word audit'))
 
 # country_options = ['USA', 'Singapore']
 # country_options_key = {"USA":"com", "Singapore":"sg"}
@@ -125,10 +127,16 @@ elif option == 'VOC':
             output = text_to_text(system_prompt, user_prompt)
 
             st.write(output)
+
+
 elif option == 'image audit':
+    st.title("图像审核")
+
     with st.container():
-        File = st.file_uploader('Please select the image to be audited', type=["webp", "png", "jpg", "jpeg"], key="new")
-        result = st.button("Submit")
+        # 1. 上传图片和提交请求功能
+        st.subheader("上传图片")
+        File = st.file_uploader('请选择要审核的图片', type=["webp", "png", "jpg", "jpeg"], key="new")
+        result = st.button("提交")
 
         if result:
             if File is not None:
@@ -143,6 +151,59 @@ elif option == 'image audit':
                 if save_path.exists():
                     file_name = save_path
                     output = content_moderation_image(file_name)
-                    st.write(output)
+
+                    # 2. 显示图片功能
+                    st.subheader("上传的图片")
+                    # 获取图片的宽度
+                    img = Image.open(File)
+                    width, height = img.size
+                    
+                    # 如果宽度超过 256 像素,则按比例缩小到 256 像素宽度
+                    if width > 256:
+                        st.image(File, caption='Uploaded Image', width=256)
+                    else:
+                        st.image(File, caption='Uploaded Image', use_column_width=True)
+
+                    # 3. 显示图片审核结果功能
+                    st.subheader("图片审核结果")
+                    data = json.loads(output[0]['text'])
+                    st.write('【侵权检测结果】', '是' if data['infringement'] else '否')
+                    st.write('【置信度】', data['confidence'])
+                    st.write('【说明】', data['reason'])
+                    st.write(' 结构化输出')
+                    st.write(data)
+
             else:
-                st.write('select the image to audited')
+                st.write('请选择要审核的图片')
+
+elif option == 'word audit':
+    st.title("文本审核")
+
+    # 使用会话状态保存用户输入的文本
+    text_state = st.session_state.get('text', '')
+
+    with st.container():
+        st.subheader("输入要审核的文本")
+        text = st.text_area("请在此输入文本内容", text_state)
+        result = st.button("提交")
+
+        if result:
+            if text:
+                output = content_moderation_text(text)
+
+                st.subheader("文本审核结果")
+                data = json.loads(output[0]['text'])
+                
+                st.write('【违规检测】', '是' if data['Moderation'] else '否')
+                st.write('【违规内容】', data['Category'])
+                st.write('【置信度】', data['confidence_score'])
+                st.write('【说明】', data['Reason'])
+                st.write('结构化输出')
+                st.write(data)
+
+            else:
+                st.write('请输入要审核的文本内容')
+
+        # 更新会话状态中的文本
+        st.session_state['text'] = text
+

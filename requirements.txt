@@ -2,6 +2,7 @@ boto3
 langchain
 langchain-aws
 crewai
-crewai-tools
 streamlit
 chardet
+python-dotenv
+langchain-community
