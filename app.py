@@ -30,6 +30,7 @@ option = st.sidebar.selectbox(
 
 
 if option == 'AI Listing':
+    st.title("AI Listing")
     language_options = ['English', 'Chinese']
     language_lable = st.sidebar.selectbox('Select Language', language_options)
     # mode_options = ['Agent', 'PE']
@@ -113,6 +114,8 @@ if option == 'AI Listing':
                 # running a text to text task, and outputting the results to the front end
                 st.write('select product image')
 elif option == 'VOC':
+    st.title("VOC-客户声音洞察")
+
     language_options = ['English', 'Chinese']
     language_lable = st.sidebar.selectbox('Select Language', language_options)
 
